@@ -4,17 +4,55 @@ on:
   push:
 
 jobs:
+
   Compilation:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout du dépôt
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Compilation + tests
+      - name: Build
         run: |
           mkdir -p build
           cd build
           cmake ..
           make
-          make test
+
+  Test_Car:
+    runs-on: ubuntu-latest
+    needs: Compilation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+      - name: Run test "car" and capture report
+        run: |
+          cd build
+          set -e
+
+          echo "== Test car 5 ==" > report_car.txt
+
+          output=$(./src/calculator car 5)
+          echo "$output" | tee -a report_car.txt
+
+          if ! echo "$output" | grep -Eq '^25(\.0+)?$'; then
+            echo "ERREUR: resultat inattendu (attendu: 25)" | tee -a report_car.txt
+            exit 1
+          fi
+
+          echo "OK: resultat attendu" | tee -a report_car.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-car-report
+          path: build/report_car.txt
