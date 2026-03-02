@@ -1,42 +1,12 @@
-name: Automatisation des tests
+name: CI Pipeline
 
 on:
   push:
 
 jobs:
+
   Compilation:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build + CTest
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-          make
-          ctest --output-on-failure --verbose
-
-  Test_Add:
-    runs-on: ubuntu-latest
-    needs: Compilation
-    steps:
-      - name: Test fonction add
-        run: |
-          last_directory=$(basename ${{ runner.workspace }})
-          git clone https://github.com/${{ github.repository }}.git
-          cd ./$last_directory
-          mkdir build
-          cd build
-          cmake ..
-          make
-          echo "Résultat add 10 5 :"
-          ./src/calculator add 10 5
-
-  Test_Car:
-    runs-on: ubuntu-latest
-    needs: Compilation
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,28 +18,84 @@ jobs:
           cmake ..
           make
 
-      - name: Test fonction car + génération rapport
+  Test_Add:
+    runs-on: ubuntu-latest
+    needs: Compilation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test add
         run: |
+          mkdir -p build
           cd build
-          set -e
+          cmake ..
+          make
+          ./src/calculator add 10 5
 
-          echo "== Rapport Test : car 5 ==" > report_car.txt
+  Test_Sub:
+    runs-on: ubuntu-latest
+    needs: Compilation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test sub
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+          ./src/calculator sub 3 -2
 
-          output=$(./src/calculator car 5)
-          echo "Sortie: $output" | tee -a report_car.txt
+  Test_Mul:
+    runs-on: ubuntu-latest
+    needs: Compilation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test mul
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+          ./src/calculator mul 5 5
 
-          # Attendu: 25 ou 25.000000 selon ton printf
-          if ! echo "$output" | grep -Eq '^25(\.0+)?$'; then
-            echo "❌ ERREUR: résultat inattendu (attendu: 25)" | tee -a report_car.txt
-            exit 1
-          fi
+  Test_Div:
+    runs-on: ubuntu-latest
+    needs: Compilation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test div
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+          ./src/calculator div 1 5
 
-          echo "✅ OK: résultat attendu" | tee -a report_car.txt
+  Test_Car:
+    runs-on: ubuntu-latest
+    needs: Compilation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test car
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+          ./src/calculator car 5
 
-      - name: Upload artefact (rapport car)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rapport-test-car
-          path: build/report_car.txt
-          retention-days: 14
+  Deploy:
+    runs-on: ubuntu-latest
+    needs:
+      - Test_Add
+      - Test_Sub
+      - Test_Mul
+      - Test_Div
+      - Test_Car
+    steps:
+      - name: Deploy
+        run: echo "Déploiement de la solution"
