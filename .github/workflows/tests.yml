@@ -4,25 +4,39 @@ on:
   push:
 
 jobs:
-
   Compilation:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build
+      - name: Build + CTest
         run: |
           mkdir -p build
           cd build
           cmake ..
           make
+          ctest --output-on-failure --verbose
+
+  Test_Add:
+    runs-on: ubuntu-latest
+    needs: Compilation
+    steps:
+      - name: Test fonction add
+        run: |
+          last_directory=$(basename ${{ runner.workspace }})
+          git clone https://github.com/${{ github.repository }}.git
+          cd ./$last_directory
+          mkdir build
+          cd build
+          cmake ..
+          make
+          echo "Résultat add 10 5 :"
+          ./src/calculator add 10 5
 
   Test_Car:
     runs-on: ubuntu-latest
     needs: Compilation
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,25 +48,28 @@ jobs:
           cmake ..
           make
 
-      - name: Run test "car" and capture report
+      - name: Test fonction car + génération rapport
         run: |
           cd build
           set -e
 
-          echo "== Test car 5 ==" > report_car.txt
+          echo "== Rapport Test : car 5 ==" > report_car.txt
 
           output=$(./src/calculator car 5)
-          echo "$output" | tee -a report_car.txt
+          echo "Sortie: $output" | tee -a report_car.txt
 
+          # Attendu: 25 ou 25.000000 selon ton printf
           if ! echo "$output" | grep -Eq '^25(\.0+)?$'; then
-            echo "ERREUR: resultat inattendu (attendu: 25)" | tee -a report_car.txt
+            echo "❌ ERREUR: résultat inattendu (attendu: 25)" | tee -a report_car.txt
             exit 1
           fi
 
-          echo "OK: resultat attendu" | tee -a report_car.txt
+          echo "✅ OK: résultat attendu" | tee -a report_car.txt
 
-      - name: Upload artifact
+      - name: Upload artefact (rapport car)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-car-report
+          name: rapport-test-car
           path: build/report_car.txt
+          retention-days: 14
